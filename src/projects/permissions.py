@@ -1,7 +1,7 @@
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import BasePermission
 
-from projects.models import Issue, Project
+from projects.models import Comment, Issue, Project
 
 
 class IsProjectAuthorForProjectViewset(BasePermission):
@@ -45,3 +45,27 @@ class IsIssueAuthor(BasePermission):
       return True
     issue = get_object_or_404(Issue, pk=view.kwargs["pk"])
     return issue.author == request.user
+  
+  
+class IsCommentAuthor(BasePermission):
+  """
+  We verify if the user is the author of the comment in case of the view action is update or destroy
+  """
+
+  def has_permission(self, request, view):
+    if view.action not in ("update", "destroy", "partial_update"):
+      return True
+    comment = get_object_or_404(Comment, pk=view.kwargs["pk"])
+    return comment.author == request.user
+  
+  
+class IsIssueAuthorOrProjectContributorOrProjectAuthor(BasePermission):
+  """
+  We verify if the user is the author of the issue or if the user is a contributor or the author of the project and if the action is update or destroy
+  """
+
+  def has_permission(self, request, view):
+    if view.action in ("update", "destroy", "partial_update"):
+      return True
+    issue = get_object_or_404(Issue, pk=request.data.get('issue_id'))
+    return request.user in issue.project.contributors.all() or issue.author == request.user or request.user == issue.project.author

@@ -12,8 +12,8 @@ from rest_framework.response import Response
 from projects import serializers
 
 from projects.models import Project, Contributor, Issue, Comment
-from projects.serializers import ContributorSerializer, ProjectSerializer, ProjectDetailSerializer, IssueSerializer
-from projects.permissions import IsProjectAuthorForProjectViewset, IsProjectAuthor, IsProjectAuthorOrContributor, IsIssueAuthor
+from projects.serializers import ContributorSerializer, ProjectSerializer, ProjectDetailSerializer, IssueSerializer, CommentSerializer
+from projects.permissions import IsCommentAuthor, IsProjectAuthorForProjectViewset, IsProjectAuthor, IsProjectAuthorOrContributor, IsIssueAuthor, IsIssueAuthorOrProjectContributorOrProjectAuthor
 
 from authentication.models import User
 
@@ -42,7 +42,7 @@ class ProjectViewSet(MultipleSerializerMixin, viewsets.ModelViewSet):
 
   def perform_create(self, serializer):
     serializer.save(author=self.request.user)
-    
+
   def update(self, request, *args, **kwargs):
     project = get_object_or_404(Project, pk=self.kwargs["pk"])
     serializer = ProjectSerializer(project, data=request.data, partial=True)
@@ -88,8 +88,9 @@ class ContributorViewSet(viewsets.ModelViewSet):
 
 
 class IssueViewSet(viewsets.ModelViewSet):
-  serializer_class = serializers.IssueSerializer
-  permission_classes = [IsAuthenticated, IsProjectAuthorOrContributor, IsIssueAuthor]
+  serializer_class = IssueSerializer
+  permission_classes = [IsAuthenticated,
+                        IsProjectAuthorOrContributor, IsIssueAuthor]
 
   def get_queryset(self):
     return Issue.objects.filter(project__id=self.request.query_params.get('project_id'))
@@ -99,18 +100,18 @@ class IssueViewSet(viewsets.ModelViewSet):
       Project, pk=self.request.data.get('project_id'))
     serializer.save(project=project, author=self.request.user,
                     assignee=project.author)
-    
+
   def retrieve(self, request, *args, **kwargs):
     issue = get_object_or_404(
       Issue, pk=self.kwargs["pk"])
     return Response(IssueSerializer(issue).data)
-  
+
   def destroy(self, request, *args, **kwargs):
     issue = get_object_or_404(
       Issue, pk=self.kwargs["pk"])
     if issue.delete():
       return Response({'message': 'Issue deleted'}, status=status.HTTP_204_NO_CONTENT)
-    
+
   def update(self, request, *args, **kwargs):
     issue = get_object_or_404(Issue, pk=self.kwargs["pk"])
     serializer = IssueSerializer(issue, data=request.data, partial=True)
@@ -118,3 +119,35 @@ class IssueViewSet(viewsets.ModelViewSet):
       serializer.save()
       return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+  serializer_class = CommentSerializer
+  permission_classes = [IsAuthenticated, IsCommentAuthor,
+                        IsIssueAuthorOrProjectContributorOrProjectAuthor]
+
+  def get_queryset(self):
+    return Comment.objects.filter(issue__id=self.request.query_params.get('issue_id'))
+
+  def perform_create(self, serializer):
+    issue = get_object_or_404(
+      Issue, pk=self.request.data.get('issue_id'))
+    serializer.save(issue=issue, author=self.request.user)
+
+  def retrieve(self, request, *args, **kwargs):
+    comment = get_object_or_404(Comment, pk=self.kwargs["pk"])
+    return Response(CommentSerializer(comment).data)
+
+  def update(self, request, *args, **kwargs):
+    comment = get_object_or_404(Comment, pk=self.kwargs["pk"])
+    serializer = CommentSerializer(comment, data=request.data, partial=True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+  def destroy(self, request, *args, **kwargs):
+    comment = get_object_or_404(
+      Comment, pk=self.kwargs["pk"])
+    if comment.delete():
+      return Response({'message': 'Comment deleted'}, status=status.HTTP_204_NO_CONTENT)
