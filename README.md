@@ -52,6 +52,12 @@ Now you can go to the following url in your browser to create your account and f
 http://localhost:8000/signup/
 ```
 
+To access to the API endpoints documentation and models schema you can go to the following url after you have started the server:
+
+```
+http://localhost:8000/documentation/
+```
+
 ### ENJOY 🎉 ! 
 
 
