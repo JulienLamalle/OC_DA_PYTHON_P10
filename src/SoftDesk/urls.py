@@ -18,10 +18,14 @@ from django.urls import path, include
 
 from rest_framework import routers
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.schemas import get_schema_view
 
 from authentication.views import RegistrationView
 from projects.views import ContributorViewSet, ProjectViewSet, IssueViewSet, CommentViewSet
 import authentication.urls
+
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.views.generic import TemplateView
 
 router = routers.SimpleRouter()
 router.register('project', ProjectViewSet, basename='project')
@@ -30,6 +34,11 @@ router.register('issue', IssueViewSet, basename='issue')
 router.register('comment', CommentViewSet, basename='comment')
 
 urlpatterns = [
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('documentation/', TemplateView.as_view(
+        template_name='swagger-ui.html',
+        extra_context={'schema_url':'schema'}
+    ), name='documentation'),
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

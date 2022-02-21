@@ -61,11 +61,23 @@ class IsCommentAuthor(BasePermission):
   
 class IsIssueAuthorOrProjectContributorOrProjectAuthor(BasePermission):
   """
-  We verify if the user is the author of the issue or if the user is a contributor or the author of the project and if the action is update or destroy
+  To display a list of comments related to an issue we verify if the user is the author of the issue or if the user is a contributor or the author of the project
   """
 
   def has_permission(self, request, view):
-    if view.action in ("update", "destroy", "partial_update"):
+    if view.action not in ('list'):
+      return True
+    issue = get_object_or_404(Issue, pk=request.query_params.get('issue_id'))
+    return request.user in issue.project.contributors.all() or issue.author == request.user or request.user == issue.project.author
+  
+
+class IsIssueAuthorOrProjectContributorOrProjectAuthorSoHeCanCreateAnIssueComment(BasePermission):
+  """
+  To create a comment related to an issue we verify if the user is the author of the issue or if the user is a contributor or the author of the project
+  """
+
+  def has_permission(self, request, view):
+    if view.action not in ('create'):
       return True
     issue = get_object_or_404(Issue, pk=request.data.get('issue_id'))
     return request.user in issue.project.contributors.all() or issue.author == request.user or request.user == issue.project.author

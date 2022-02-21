@@ -1,19 +1,20 @@
 from cmath import e
 from itertools import chain
 from django.db import IntegrityError
-from django.forms import ValidationError
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+
 from projects import serializers
 
 from projects.models import Project, Contributor, Issue, Comment
 from projects.serializers import ContributorSerializer, ProjectSerializer, ProjectDetailSerializer, IssueSerializer, CommentSerializer
-from projects.permissions import IsCommentAuthor, IsProjectAuthorForProjectViewset, IsProjectAuthor, IsProjectAuthorOrContributor, IsIssueAuthor, IsIssueAuthorOrProjectContributorOrProjectAuthor
+from projects.permissions import IsCommentAuthor, IsProjectAuthorForProjectViewset, IsProjectAuthor, IsProjectAuthorOrContributor, IsIssueAuthor, IsIssueAuthorOrProjectContributorOrProjectAuthor, IsIssueAuthorOrProjectContributorOrProjectAuthorSoHeCanCreateAnIssueComment
 
 from authentication.models import User
 
@@ -65,8 +66,11 @@ class ContributorViewSet(viewsets.ModelViewSet):
   serializer_class = ContributorSerializer
   permission_classes = [IsAuthenticated, IsProjectAuthor]
 
-  def get_queryset(self):
-    return Contributor.objects.filter(project__id=self.request.query_params.get('project_id'))
+  @extend_schema(parameters=[OpenApiParameter(name='project_id', location=OpenApiParameter.QUERY, required=True)])
+  def list(self, request, *args, **kwargs):
+    contributions = Contributor.objects.filter(
+      project__id=request.query_params.get('project_id'))
+    return Response(self.serializer_class(contributions, many=True).data)
 
   def perform_create(self, serializer):
     request = self.request
@@ -92,8 +96,11 @@ class IssueViewSet(viewsets.ModelViewSet):
   permission_classes = [IsAuthenticated,
                         IsProjectAuthorOrContributor, IsIssueAuthor]
 
-  def get_queryset(self):
-    return Issue.objects.filter(project__id=self.request.query_params.get('project_id'))
+  @extend_schema(parameters=[OpenApiParameter(name='project_id', location=OpenApiParameter.QUERY, required=True)])
+  def list(self, request, *args, **kwargs):
+    issues = Issue.objects.filter(
+      project__id=request.query_params.get('project_id'))
+    return Response(self.serializer_class(issues, many=True).data)
 
   def perform_create(self, serializer):
     project = get_object_or_404(
@@ -124,10 +131,15 @@ class IssueViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
   serializer_class = CommentSerializer
   permission_classes = [IsAuthenticated, IsCommentAuthor,
-                        IsIssueAuthorOrProjectContributorOrProjectAuthor]
+                        IsIssueAuthorOrProjectContributorOrProjectAuthor,
+                        IsIssueAuthorOrProjectContributorOrProjectAuthorSoHeCanCreateAnIssueComment
+                        ]
 
-  def get_queryset(self):
-    return Comment.objects.filter(issue__id=self.request.query_params.get('issue_id'))
+  @extend_schema(parameters=[OpenApiParameter(name='issue_id', location=OpenApiParameter.QUERY, required=True)])
+  def list(self, request, *args, **kwargs):
+    comments = Comment.objects.filter(
+      issue_id=request.query_params.get('issue_id'))
+    return Response(self.serializer_class(comments, many=True).data)
 
   def perform_create(self, serializer):
     issue = get_object_or_404(
