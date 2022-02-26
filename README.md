@@ -40,7 +40,7 @@ You are now in the application folder with your environment launched, so you can
 cd src
 ```
 
-To start the server locally, make sure you are in the LITReview folder and run the following command: 
+To start the server locally, make sure you are in the src folder and run the following command: 
 
 ```
 python manage.py runserver
